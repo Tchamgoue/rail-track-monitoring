@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Track Monitor - Système de surveillance ferroviaire</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🚂 Railway Track Monitor</h1>
+            <p class="subtitle">Système de détection d'anomalies sur voies ferrées</p>
+        </header>
+
+        <!-- Dashboard Stats -->
+        <section id="stats-section" class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-inspections">0</div>
+                <div class="stat-label">Inspections totales</div>
+            </div>
+            <div class="stat-card critical">
+                <div class="stat-value" id="critical-count">0</div>
+                <div class="stat-label">Criticité haute</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-value" id="warning-count">0</div>
+                <div class="stat-label">Criticité moyenne</div>
+            </div>
+            <div class="stat-card safe">
+                <div class="stat-value" id="safe-count">0</div>
+                <div class="stat-label">Criticité basse</div>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2>Nouvelle inspection</h2>
+            
+            <div class="upload-zone" id="upload-zone">
+                <div class="upload-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p class="upload-text">Glissez une image ici ou cliquez pour sélectionner</p>
+                    <p class="upload-hint">Formats acceptés: JPG, PNG (max 10MB)</p>
+                </div>
+                <input type="file" id="file-input" accept="image/jpeg,image/png,image/jpg" hidden>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progress-container" class="progress-container" style="display: none;">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <p id="progress-text" class="progress-text">Analyse en cours...</p>
+            </div>
+
+            <!-- Result -->
+            <div id="result-container" class="result-container" style="display: none;">
+                <h3>Résultats de l'analyse</h3>
+                <div class="result-grid">
+                    <div class="result-info">
+                        <div class="info-item">
+                            <span class="info-label">Anomalies détectées:</span>
+                            <span class="info-value" id="result-anomalies">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Score de criticité:</span>
+                            <span class="info-value" id="result-score">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Niveau:</span>
+                            <span class="info-value" id="result-level">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Temps de traitement:</span>
+                            <span class="info-value" id="result-time">-</span>
+                        </div>
+                        <div class="info-item full-width">
+                            <span class="info-label">Notes:</span>
+                            <p class="info-notes" id="result-notes">-</p>
+                        </div>
+                    </div>
+                    <div class="result-images">
+                        <div class="image-container">
+                            <p class="image-title">Image annotée</p>
+                            <img id="result-image" src="" alt="Résultat de l'analyse">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inspections List -->
+        <section class="inspections-section">
+            <h2>Historique des inspections</h2>
+            
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">Toutes</button>
+                <button class="filter-btn" data-filter="high">Haute criticité</button>
+                <button class="filter-btn" data-filter="medium">Moyenne</button>
+                <button class="filter-btn" data-filter="low">Basse</button>
+            </div>
+
+            <div id="inspections-list" class="inspections-list">
+                <!-- Populated by JavaScript -->
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
