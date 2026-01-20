@@ -178,23 +178,25 @@ class RailwayDetector:
     def _calculate_criticality(self, anomalies_count: int, image_size: int) -> float:
         """
         Calcule un score de criticité entre 0 et 1
-        Basé sur le nombre et la densité des anomalies
+        VERSION AJUSTÉE pour images réelles
         
-        Logique:
-        - 0-2 anomalies = low (< 0.4)
-        - 3-7 anomalies = medium (0.4-0.7)
-        - 8+ anomalies = high (> 0.7)
+        Logique ajustée:
+        - 0-10 anomalies = low (< 0.4)
+        - 11-30 anomalies = medium (0.4-0.7)
+        - 31+ anomalies = high (> 0.7)
         """
-        # Score basique basé sur le compte
         if anomalies_count == 0:
             return 0.0
-        elif anomalies_count <= 2:
-            return 0.2 + (anomalies_count * 0.1)
-        elif anomalies_count <= 7:
-            return 0.4 + ((anomalies_count - 2) * 0.06)
+        elif anomalies_count <= 10:
+            # 1-10 anomalies : progression douce
+            return 0.05 + (anomalies_count * 0.03)  # Max 0.35
+        elif anomalies_count <= 30:
+            # 11-30 anomalies : zone medium
+            return 0.4 + ((anomalies_count - 10) * 0.015)  # 0.4 à 0.7
         else:
-            # Plafonné à 1.0
-            return min(0.7 + ((anomalies_count - 7) * 0.05), 1.0)
+            # 31+ anomalies : critique
+            return min(0.7 + ((anomalies_count - 30) * 0.01), 1.0)
+        
     
     def _generate_notes(self, anomalies_count: int, criticality_score: float) -> str:
         """
