@@ -15,45 +15,50 @@ Janvier 2025
 
 ---
 
-## Slide 2 : Contexte et problématique
+## SLIDE 2 : Contexte et problématique
 
 ### Le défi
-- Sécurité ferroviaire = priorité absolue
-- Inspection manuelle = coûteuse et chronophage
-- Détection précoce d'anomalies = prévention d'incidents
+- **Sécurité ferroviaire** = priorité absolue pour ISKernel
+- **Inspection manuelle** = coûteuse, chronophage, incomplète
+- **Détection précoce** = prévention d'incidents graves
 
 ### Solution proposée
-Système automatisé d'analyse d'images de voies ferrées utilisant le traitement d'image et l'IA
+Système automatisé d'analyse d'images de voies ferrées utilisant le traitement d'image et OpenCV
 
-**Alignement avec ISKernel :**
-- Applications critiques
-- Performance et fiabilité
-- Innovation technique
+### Alignement avec ISKernel
+✅ Applications critiques (ferroviaire)  
+✅ Performance et fiabilité (< 0.5s/analyse)  
+✅ Stack technique (OpenCV mentionné dans l'offre)  
+✅ Innovation technique (base pour ML)  
 
 ---
 
-## Slide 3 : Architecture technique
+## SLIDE 3 : Architecture technique
 ```
+Composants:
+
 ┌─────────────┐
-│  Frontend   │ → HTML/CSS/JS (Interface moderne)
+│  Frontend   │ → HTML/CSS/JS responsive
+│  (Interface)│    Drag & drop, dashboard
 └──────┬──────┘
-       │ HTTP/REST
-┌──────▼──────┐
-│  API Flask  │ → 5 endpoints REST
-└──────┬──────┘
+       │ HTTP REST
+┌──────▼────────────┐
+│  API Flask (7 EP) │ → CRUD + Upload + Stats
+│  + Swagger        │    + Search + Export
+└──────┬────────────┘
        │
-   ┌───▼────┬────────┐
-   │        │        │
-┌──▼───┐ ┌─▼───┐ ┌──▼──────┐
-│ DB   │ │OpenCV│ │ Storage│
-│SQLite│ │Detector│ │ Files │
-└──────┘ └─────┘ └─────────┘
+   ┌───▼────┬─────────┬──────────┐
+   │        │         │          │
+┌──▼───┐ ┌─▼────┐ ┌──▼──────┐ ┌─▼─────┐
+│SQLite│ │OpenCV│ │Validators│ │Export │
+│ ORM  │ │Canny │ │Exceptions│ │  CSV  │
+└──────┘ └──────┘ └──────────┘ └───────┘
 ```
 
 **Stack :**
-- Backend : Python 3.12, Flask, OpenCV, SQLite
+- Backend : Python 3.12, Flask 3.0, OpenCV 4.8, SQLite
 - Frontend : Vanilla JS (ES6+), HTML5, CSS3
-- Algorithme : Canny Edge Detection
+- Algorithme : Canny Edge Detection (standard industrie)
 
 ---
 
