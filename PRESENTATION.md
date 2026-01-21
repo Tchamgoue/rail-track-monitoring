@@ -8,10 +8,10 @@
 **Railway Track Monitor**
 *Système de détection d'anomalies sur voies ferrées*
 
-[Votre Nom]
+TCHAMGOUE KAMENI Adrienne
 Janvier 2025
 
-Image : Logo ou capture d'écran du dashboard
+
 
 ---
 
@@ -250,12 +250,7 @@ Système automatisé d'analyse d'images de voies ferrées utilisant le traitemen
 ✅ Code production-ready
 ✅ Documentation exhaustive
 
-### Prochaines étapes
 
-Si recruté chez ISKernel :
-- Approfondir les applications ferroviaires
-- Contribuer aux projets critiques
-- Progresser avec vos experts Python/.NET/IA
 
 **Merci pour votre attention !**
 
