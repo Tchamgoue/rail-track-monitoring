@@ -6,6 +6,7 @@ let currentFilter = 'all';
 let allInspections = [];
 let currentPage = 1;
 const itemsPerPage = 10;
+let selectedInspectionId = null;
 
 // Éléments DOM
 const uploadZone = document.getElementById('upload-zone');
@@ -40,6 +41,9 @@ function setupEventListeners() {
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', handleFilterClick);
     });
+
+    // Suppression d'une inspection
+    document.getElementById('delete-btn').addEventListener('click', handleDeleteClick);
 }
 
 // Gestion drag & drop
@@ -138,6 +142,17 @@ async function handleFile(file) {
 
 // Affichage du résultat
 function displayResult(inspection) {
+    // Stockage de l'ID de l'inspection affichée
+    selectedInspectionId = inspection.id;
+    
+    // Mise à jour du titre
+    document.getElementById('result-title').textContent = 
+        inspection.id ? `Inspection #${inspection.id}` : 'Résultats de l\'analyse';
+    
+    // Affichage du bouton suppression si c'est une inspection existante
+    const deleteBtn = document.getElementById('delete-btn');
+    deleteBtn.style.display = inspection.id ? 'block' : 'none';
+    
     document.getElementById('result-anomalies').textContent = inspection.anomalies_count;
     document.getElementById('result-score').textContent = inspection.criticality_score;
     
@@ -220,11 +235,12 @@ function displayInspections() {
     
     // Cartes d'inspections
     const cardsHTML = paginatedInspections.map(insp => `
-        <div class="inspection-card level-${insp.criticality_level}">
+        <div class="inspection-card level-${insp.criticality_level} ${selectedInspectionId === insp.id ? 'selected' : ''}" 
+            onclick="showInspectionDetail(${insp.id})">
             <img src="http://localhost:5000/uploads/${insp.filename.replace(/\.(\w+)$/, '_annotated.$1')}" 
-                 alt="Inspection" 
-                 class="inspection-thumbnail"
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3C/svg%3E'">
+                alt="Inspection" 
+                class="inspection-thumbnail"
+                onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3C/svg%3E'">
             
             <div class="inspection-info">
                 <h4>${insp.original_filename}</h4>
@@ -286,3 +302,169 @@ function handleFilterClick(e) {
     currentFilter = e.target.dataset.filter;
     displayInspections();
 }
+
+// Afficher le détail d'une inspection
+async function showInspectionDetail(inspectionId) {
+    try {
+        const response = await fetch(`${API_URL}/inspections/${inspectionId}`);
+        
+        if (!response.ok) {
+            throw new Error('Inspection non trouvée');
+        }
+        
+        const data = await response.json();
+        displayResult(data.inspection);
+        
+        // Mettre à jour la sélection visuelle dans le DOM
+        document.querySelectorAll('.inspection-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Trouver la carte cliquée par son data-id
+        const clickedCard = document.querySelector(`.inspection-card[data-id="${inspectionId}"]`);
+        if (clickedCard) {
+            clickedCard.classList.add('selected');
+        }
+        
+    } catch (error) {
+        console.error('[ERROR] Failed to load inspection:', error);
+        alert('Erreur lors du chargement de l\'inspection');
+    }
+}
+
+// Gestion du clic sur suppression
+function handleDeleteClick() {
+    if (!selectedInspectionId) {
+        alert('Aucune inspection sélectionnée');
+        return;
+    }
+    
+    showDeleteConfirmation(selectedInspectionId);
+}
+
+// Modal de confirmation de suppression
+function showDeleteConfirmation(inspectionId) {
+    // Créer la modal
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>⚠️ Confirmer la suppression</h3>
+            <p>Êtes-vous sûr de vouloir supprimer cette inspection ? Cette action est irréversible.</p>
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeDeleteModal()">Annuler</button>
+                <button class="modal-btn confirm" onclick="confirmDelete(${inspectionId})">Supprimer</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Fermer avec clic sur overlay
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeDeleteModal();
+        }
+    });
+}
+
+// Fermer la modal
+function closeDeleteModal() {
+    const modal = document.querySelector('.modal-overlay');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Confirmer et exécuter la suppression
+async function confirmDelete(inspectionId) {
+    try {
+        const response = await fetch(`${API_URL}/inspections/${inspectionId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erreur lors de la suppression');
+        }
+        
+        const data = await response.json();
+        console.log('[INFO] Inspection deleted:', data);
+        
+        // Fermer la modal
+        closeDeleteModal();
+        
+        // Masquer la zone de résultat
+        resultContainer.style.display = 'none';
+        selectedInspectionId = null;
+        
+        // Recharger les données
+        await loadStats();
+        await loadInspections();
+        
+        // Message de succès
+        showSuccessMessage('Inspection supprimée avec succès');
+        
+    } catch (error) {
+        console.error('[ERROR] Failed to delete inspection:', error);
+        alert('Erreur lors de la suppression de l\'inspection');
+        closeDeleteModal();
+    }
+}
+
+// Message de succès temporaire
+function showSuccessMessage(message) {
+    const successDiv = document.createElement('div');
+    successDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--success);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 2000;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+    `;
+    successDiv.textContent = `✓ ${message}`;
+    
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => {
+        successDiv.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => successDiv.remove(), 300);
+    }, 3000);
+}
+
+function exportToCSV() {
+    window.open(`${API_URL}/export/csv`, '_blank');
+    showSuccessMessage('Export CSV en cours...');
+}
+
+// Ajouter les animations CSS (si pas déjà dans le CSS)
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);

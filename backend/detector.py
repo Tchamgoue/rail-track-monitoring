@@ -162,7 +162,7 @@ class RailwayDetector:
             )
         
         # Ajout d'un bandeau avec info
-        info_text = f"Anomalies detected: {len(anomalies)}"
+        info_text = f"Anomalies detectées: {len(anomalies)}"
         cv2.putText(
             image, 
             info_text, 
@@ -203,13 +203,13 @@ class RailwayDetector:
         Génère des notes automatiques basées sur l'analyse
         """
         if criticality_score >= 0.7:
-            return f"CRITICAL: {anomalies_count} anomalies detected. Immediate inspection recommended."
+            return f"CRITICAL: {anomalies_count} anomalies détectées. Inspection immédiate recommandée."
         elif criticality_score >= 0.4:
-            return f"WARNING: {anomalies_count} anomalies detected. Schedule inspection soon."
+            return f"WARNING: {anomalies_count} anomalies détectées. Planifier une inspection bientôt."
         elif anomalies_count > 0:
-            return f"INFO: {anomalies_count} minor anomalies detected. Monitor during next maintenance."
+            return f"INFO: {anomalies_count} anomalies mineures détectées. Surveiller lors de la prochaine maintenance."
         else:
-            return "OK: No significant anomalies detected."
+            return "OK: Pas d'anomalies significatives détectées."
 
 
 # Test du module si exécuté directement

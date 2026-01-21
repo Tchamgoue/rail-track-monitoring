@@ -6,6 +6,7 @@ Expose 4 endpoints REST pour gérer les inspections
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flasgger import Swagger, swag_from
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
@@ -13,10 +14,96 @@ import traceback
 
 from models import Database, Inspection
 from detector import RailwayDetector
+from exceptions import APIException, ValidationError, NotFoundError, ProcessingError, DatabaseError
+from validators import validate_image_file, validate_pagination_params
+from flask import make_response
+try:
+    from exporters import export_inspections_to_csv
+except ImportError:
+    print("[WARNING] exporters.py not found, CSV export will not be available")
+    export_inspections_to_csv = None
 
 # Configuration de l'application
 app = Flask(__name__)
 CORS(app)  # Permet les requêtes depuis le frontend
+
+# Configuration Swagger
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/apispec.json',
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/api/docs"
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "Railway Track Monitoring API",
+        "description": "API pour la détection automatique d'anomalies sur voies ferrées",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Adrienne Tchamgoue",
+            "email": "adrienne.tchamgoue@gmail.com"
+        }
+    },
+    "host": "localhost:5000",
+    "basePath": "/",
+    "schemes": ["http"],
+    "tags": [
+        {
+            "name": "Health",
+            "description": "Endpoints de santé du service"
+        },
+        {
+            "name": "Inspections",
+            "description": "Gestion des inspections de voies ferrées"
+        },
+        {
+            "name": "Statistics",
+            "description": "Statistiques et analytics"
+        }
+    ]
+}
+swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
+
+@app.errorhandler(APIException)
+def handle_api_exception(error):
+    """Handler global pour les exceptions API"""
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
+@app.errorhandler(ValidationError)
+def handle_validation_error(error):
+    """Handler pour les erreurs de validation"""
+    return jsonify({'error': error.message}), error.status_code
+
+
+@app.errorhandler(NotFoundError)
+def handle_not_found_error(error):
+    """Handler pour les ressources non trouvées"""
+    return jsonify({'error': error.message}), error.status_code
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    """Handler pour les erreurs non gérées"""
+    print(f"[ERROR] Unexpected error: {str(error)}")
+    traceback.print_exc()
+    return jsonify({
+        'error': 'Internal server error',
+        'details': str(error) if app.debug else 'An unexpected error occurred'
+    }), 500
 
 # Configuration des dossiers
 UPLOAD_FOLDER = 'uploads'
@@ -45,6 +132,24 @@ def health_check():
     """
     Endpoint de santé pour vérifier que l'API fonctionne
     GET /api/health
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Service opérationnel
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+            timestamp:
+              type: string
+              example: "2025-01-20T14:30:00"
+            service:
+              type: string
+              example: "Railway Track Monitoring API"
     """
     return jsonify({
         'status': 'ok',
@@ -64,21 +169,9 @@ def upload_inspection():
         JSON avec les résultats de l'inspection
     """
     try:
-        # Vérification présence du fichier
-        if 'image' not in request.files:
-            return jsonify({'error': 'No image file provided'}), 400
-        
-        file = request.files['image']
-        
-        # Vérification nom de fichier
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        # Vérification extension
-        if not allowed_file(file.filename):
-            return jsonify({
-                'error': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'
-            }), 400
+        # Validation avec le validateur
+        file = request.files.get('image')
+        validate_image_file(file)
         
         # Sécurisation du nom de fichier et ajout timestamp
         original_filename = secure_filename(file.filename)
@@ -92,7 +185,13 @@ def upload_inspection():
         
         # Analyse de l'image avec OpenCV
         print(f"[INFO] Starting analysis...")
-        analysis_result = detector.process_image(filepath)
+        try:
+            analysis_result = detector.process_image(filepath)
+        except Exception as e:
+            # Supprimer le fichier si l'analyse échoue
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            raise ProcessingError(f'Image analysis failed: {str(e)}')
         
         # Création de l'objet Inspection
         inspection = Inspection(
@@ -106,8 +205,11 @@ def upload_inspection():
         )
         
         # Sauvegarde en base de données
-        inspection_id = inspection.save(db)
-        print(f"[INFO] Inspection saved with ID: {inspection_id}")
+        try:
+            inspection_id = inspection.save(db)
+            print(f"[INFO] Inspection saved with ID: {inspection_id}")
+        except Exception as e:
+            raise DatabaseError(f'Failed to save inspection: {str(e)}')
         
         # Retour de la réponse
         return jsonify({
@@ -116,14 +218,15 @@ def upload_inspection():
             'message': 'Image analyzed successfully'
         }), 201
     
+    except (ValidationError, ProcessingError, DatabaseError) as e:
+        # Les exceptions custom sont gérées par les handlers
+        raise
     except Exception as e:
+        # Erreur inattendue
         print(f"[ERROR] Upload failed: {str(e)}")
         traceback.print_exc()
-        return jsonify({
-            'error': 'Internal server error',
-            'details': str(e)
-        }), 500
-
+        raise APIException('Internal server error', 500, {'details': str(e)})
+    
 
 @app.route('/api/inspections', methods=['GET'])
 def get_inspections():
@@ -135,10 +238,50 @@ def get_inspections():
         limit (optional): Nombre maximum d'inspections à retourner (défaut: 100)
     
     Returns:
-        JSON avec la liste des inspections
+        JSON avec la liste des inspections   
+    ---
+    tags:
+      - Inspections
+    parameters:
+      - name: limit
+        in: query
+        type: integer
+        default: 100
+        description: Nombre maximum d'inspections à retourner
+    responses:
+      200:
+        description: Liste des inspections
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            count:
+              type: integer
+              example: 42
+            inspections:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  filename:
+                    type: string
+                  anomalies_count:
+                    type: integer
+                  criticality_score:
+                    type: number
+                  criticality_level:
+                    type: string
     """
     try:
-        limit = request.args.get('limit', default=100, type=int)
+        limit = validate_pagination_params(
+            request.args.get('limit'),
+            default=100,
+            max_limit=500
+        )
         
         inspections = Inspection.get_all(db, limit=limit)
         
@@ -150,11 +293,8 @@ def get_inspections():
     
     except Exception as e:
         print(f"[ERROR] Failed to get inspections: {str(e)}")
-        return jsonify({
-            'error': 'Failed to retrieve inspections',
-            'details': str(e)
-        }), 500
-
+        raise DatabaseError('Failed to retrieve inspections')
+        
 
 @app.route('/api/inspections/<int:inspection_id>', methods=['GET'])
 def get_inspection(inspection_id):
@@ -169,20 +309,79 @@ def get_inspection(inspection_id):
         inspection = Inspection.get_by_id(db, inspection_id)
         
         if not inspection:
-            return jsonify({
-                'error': 'Inspection not found',
-                'id': inspection_id
-            }), 404
+            raise NotFoundError(f'Inspection {inspection_id} not found')
         
         return jsonify({
             'success': True,
             'inspection': inspection.to_dict()
         }), 200
     
+    except NotFoundError:
+        raise
     except Exception as e:
         print(f"[ERROR] Failed to get inspection {inspection_id}: {str(e)}")
+        raise DatabaseError('Failed to retrieve inspection')
+        
+        
+@app.route('/api/inspections/<int:inspection_id>', methods=['DELETE'])
+def delete_inspection(inspection_id):
+    """
+    Supprime une inspection et ses fichiers associés
+    DELETE /api/inspections/123
+    
+    Returns:
+        JSON confirmation de suppression
+    """
+    try:
+        # Récupérer l'inspection avant de la supprimer
+        inspection = Inspection.get_by_id(db, inspection_id)
+        
+        if not inspection:
+            return jsonify({
+                'error': 'Inspection not found',
+                'id': inspection_id
+            }), 404
+        
+        # Suppression des fichiers images
+        try:
+            # Image originale
+            original_path = os.path.join(app.config['UPLOAD_FOLDER'], inspection.filename)
+            if os.path.exists(original_path):
+                os.remove(original_path)
+                print(f"[INFO] Deleted file: {original_path}")
+            
+            # Image annotée
+            base_path, ext = os.path.splitext(inspection.filename)
+            annotated_filename = f"{base_path}_annotated{ext}"
+            annotated_path = os.path.join(app.config['UPLOAD_FOLDER'], annotated_filename)
+            if os.path.exists(annotated_path):
+                os.remove(annotated_path)
+                print(f"[INFO] Deleted file: {annotated_path}")
+        
+        except Exception as e:
+            print(f"[WARNING] Could not delete files: {str(e)}")
+            # Continue même si fichiers non supprimés
+        
+        # Suppression en base de données
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM inspections WHERE id = ?", (inspection_id,))
+        conn.commit()
+        conn.close()
+        
+        print(f"[INFO] Inspection {inspection_id} deleted successfully")
+        
         return jsonify({
-            'error': 'Failed to retrieve inspection',
+            'success': True,
+            'message': 'Inspection deleted successfully',
+            'id': inspection_id
+        }), 200
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to delete inspection {inspection_id}: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Failed to delete inspection',
             'details': str(e)
         }), 500
 
@@ -195,6 +394,36 @@ def get_statistics():
     
     Returns:
         JSON avec les statistiques (total, criticité, moyenne)
+    ---
+    tags:
+      - Statistics
+    responses:
+      200:
+        description: Statistiques du système
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            statistics:
+              type: object
+              properties:
+                total_inspections:
+                  type: integer
+                  example: 42
+                criticality_distribution:
+                  type: object
+                  properties:
+                    high:
+                      type: integer
+                    medium:
+                      type: integer
+                    low:
+                      type: integer
+                average_anomalies:
+                  type: number
+                  example: 18.5
     """
     try:
         stats = Inspection.get_stats(db)
@@ -208,6 +437,47 @@ def get_statistics():
         print(f"[ERROR] Failed to get statistics: {str(e)}")
         return jsonify({
             'error': 'Failed to retrieve statistics',
+            'details': str(e)
+        }), 500
+        
+@app.route('/api/export/csv', methods=['GET'])
+def export_csv():
+    """
+    Exporte toutes les inspections en CSV
+    """
+    try:
+        # Vérifier que le module est disponible
+        if export_inspections_to_csv is None:
+            return jsonify({
+                'error': 'CSV export not available',
+                'details': 'exporters module not found'
+            }), 500
+        
+        # Récupérer toutes les inspections
+        inspections = Inspection.get_all(db, limit=10000)
+        
+        if not inspections:
+            return jsonify({
+                'error': 'No inspections to export'
+            }), 404
+        
+        # Générer le CSV
+        csv_content = export_inspections_to_csv(inspections)
+        
+        # Créer la réponse
+        response = make_response(csv_content)
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = \
+            f'attachment; filename=inspections_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        
+        print(f"[INFO] Exported {len(inspections)} inspections to CSV")
+        return response
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to export CSV: {str(e)}")
+        traceback.print_exc()
+        return jsonify({
+            'error': 'Failed to export CSV',
             'details': str(e)
         }), 500
 

@@ -61,7 +61,12 @@
 
             <!-- Result -->
             <div id="result-container" class="result-container" style="display: none;">
-                <h3>Résultats de l'analyse</h3>
+                <div class="result-header">
+                    <h3 id="result-title">Résultats de l'analyse</h3>
+                    <button id="delete-btn" class="delete-btn" style="display: none;">
+                        🗑️ Supprimer cette inspection
+                    </button>
+                </div>
                 <div class="result-grid">
                     <div class="result-info">
                         <div class="info-item">
@@ -104,6 +109,7 @@
                 <button class="filter-btn" data-filter="high">Haute criticité</button>
                 <button class="filter-btn" data-filter="medium">Moyenne</button>
                 <button class="filter-btn" data-filter="low">Basse</button>
+                <button class="export-btn" onclick="exportToCSV()">Exporter CSV</button>
             </div>
 
             <div id="inspections-list" class="inspections-list">
