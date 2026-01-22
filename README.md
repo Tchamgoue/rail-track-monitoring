@@ -30,13 +30,14 @@ Application FullStack de monitoring ferroviaire permettant de détecter automati
 ```
 rail-track-monitor/
 │
-├── backend/                    # API Flask + logique métier
+├── backend/                   # API Flask + logique métier
 │   ├── app.py                 # API REST (7 endpoints)
 │   ├── models.py              # Modèles de données SQLite
 │   ├── detector.py            # Algorithme OpenCV de détection
 │   ├── exceptions.py          # Exceptions personnalisées
 │   ├── validators.py          # Validateurs d'inputs
 │   ├── exporters.py           # Export CSV
+│   ├── tests/                 # Tests unitaires
 │   ├── uploads/               # Images uploadées et annotées
 │   └── requirements.txt       # Dépendances Python
 │
@@ -51,6 +52,7 @@ rail-track-monitor/
 ├── samples/                    # Images de test
 │
 └── README.md                  # Documentation complète
+
 ```
 
 ## 🛠️ Stack Technique

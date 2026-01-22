@@ -161,12 +161,88 @@ def health_check():
 @app.route('/api/upload', methods=['POST'])
 def upload_inspection():
     """
-    Upload et analyse d'une image de voie ferrée
+    Upload et analyse d'une image
     POST /api/upload
     Body: multipart/form-data avec 'image' file
     
     Returns:
         JSON avec les résultats de l'inspection
+        
+    ---
+    tags:
+      - Inspections
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: image
+        in: formData
+        type: file
+        required: true
+        description: Image de voie ferrée (JPG, PNG, max 10MB)
+    responses:
+      201:
+        description: Image analysée avec succès
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            inspection:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  example: 1
+                filename:
+                  type: string
+                  example: "20250120_143000_rail.jpg"
+                original_filename:
+                  type: string
+                  example: "rail.jpg"
+                upload_date:
+                  type: string
+                  example: "2025-01-20T14:30:00"
+                status:
+                  type: string
+                  example: "completed"
+                anomalies_count:
+                  type: integer
+                  example: 15
+                criticality_score:
+                  type: number
+                  example: 0.52
+                criticality_level:
+                  type: string
+                  example: "medium"
+                processing_time:
+                  type: number
+                  example: 0.234
+                notes:
+                  type: string
+                  example: "WARNING: 15 anomalies detected."
+            message:
+              type: string
+              example: "Image analyzed successfully"
+      400:
+        description: Erreur de validation (fichier manquant ou invalide)
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "No image file provided"
+      500:
+        description: Erreur serveur
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "Internal server error"
+            details:
+              type: string
+    
     """
     try:
         # Validation avec le validateur
@@ -304,6 +380,34 @@ def get_inspection(inspection_id):
     
     Returns:
         JSON avec les détails de l'inspection
+    ---
+    tags:
+      - Inspections
+    parameters:
+      - name: inspection_id
+        in: path
+        type: integer
+        required: true
+        description: ID de l'inspection
+    responses:
+      200:
+        description: Détails de l'inspection
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            inspection:
+              type: object
+      404:
+        description: Inspection non trouvée
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+            id:
+              type: integer
     """
     try:
         inspection = Inspection.get_by_id(db, inspection_id)
@@ -331,6 +435,33 @@ def delete_inspection(inspection_id):
     
     Returns:
         JSON confirmation de suppression
+    ---
+    tags:
+      - Inspections
+    parameters:
+      - name: inspection_id
+        in: path
+        type: integer
+        required: true
+        description: ID de l'inspection à supprimer
+    responses:
+      200:
+        description: Inspection supprimée avec succès
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              example: true
+            message:
+              type: string
+              example: "Inspection deleted successfully"
+            id:
+              type: integer
+      404:
+        description: Inspection non trouvée
+      500:
+        description: Erreur lors de la suppression
     """
     try:
         # Récupérer l'inspection avant de la supprimer

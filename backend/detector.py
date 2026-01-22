@@ -162,7 +162,7 @@ class RailwayDetector:
             )
         
         # Ajout d'un bandeau avec info
-        info_text = f"Anomalies detectées: {len(anomalies)}"
+        info_text = f"Anomalies detectees: {len(anomalies)}"
         cv2.putText(
             image, 
             info_text, 
