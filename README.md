@@ -476,7 +476,7 @@ Ce système peut être adapté à de nombreux secteurs critiques :
 
 **TCHAMGOUE Adrienne**
 - GitHub: [@Tchamgoue](https://github.com/Tchamgoue)
-- LinkedIn: [Votre profil](https://linkedin.com/in/adrienne-kameni)
+- LinkedIn: [Adrienne Louise Tchamgoue](https://linkedin.com/in/adrienne-kameni)
 
 
 
