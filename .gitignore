@@ -33,3 +33,10 @@ backend/uploads/*
 # OS
 .DS_Store
 Thumbs.db
+
+# Tests
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
